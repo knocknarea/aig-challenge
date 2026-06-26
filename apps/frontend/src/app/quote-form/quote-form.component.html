@@ -1,0 +1,163 @@
+<div class="quote-form-container">
+  <header class="form-header">
+    <h1>Home Insurance Quote</h1>
+    <p class="text-muted">Enter your details below to receive an instant premium estimate.</p>
+  </header>
+
+  <form [formGroup]="form" (ngSubmit)="submit()" class="quote-form" novalidate>
+    <div class="form-grid">
+
+      <div class="form-field">
+        <label for="customerName">Full Name</label>
+        <input
+          id="customerName"
+          type="text"
+          formControlName="customerName"
+          placeholder="e.g. Jane Smith"
+          [class.invalid]="isInvalid('customerName')"
+        />
+        @if (isInvalid('customerName')) {
+          <span class="field-error">Full name is required.</span>
+        }
+      </div>
+
+      <div class="form-field">
+        <label for="age">Age</label>
+        <input
+          id="age"
+          type="number"
+          formControlName="age"
+          placeholder="e.g. 35"
+          min="18"
+          max="120"
+          [class.invalid]="isInvalid('age')"
+        />
+        @if (isInvalid('age')) {
+          <span class="field-error">Please enter a valid age (18–120).</span>
+        }
+      </div>
+
+      <div class="form-field">
+        <label for="propertyType">Property Type</label>
+        <select
+          id="propertyType"
+          formControlName="propertyType"
+          [class.invalid]="isInvalid('propertyType')"
+        >
+          @for (type of propertyTypes; track type) {
+            <option [value]="type">{{ type }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="form-field">
+        <label for="propertyValue">Property Value (£)</label>
+        <input
+          id="propertyValue"
+          type="number"
+          formControlName="propertyValue"
+          placeholder="e.g. 350000"
+          min="1"
+          [class.invalid]="isInvalid('propertyValue')"
+        />
+        @if (isInvalid('propertyValue')) {
+          <span class="field-error">Please enter a valid property value.</span>
+        }
+      </div>
+
+      <div class="form-field">
+        <label for="postcode">Postcode</label>
+        <input
+          id="postcode"
+          type="text"
+          formControlName="postcode"
+          placeholder="e.g. SW1A 1AA"
+          [class.invalid]="isInvalid('postcode')"
+        />
+        @if (isInvalid('postcode')) {
+          <span class="field-error">Postcode is required.</span>
+        }
+      </div>
+
+      <div class="form-field">
+        <label for="previousClaims">Previous Claims (last 5 years)</label>
+        <input
+          id="previousClaims"
+          type="number"
+          formControlName="previousClaims"
+          min="0"
+          [class.invalid]="isInvalid('previousClaims')"
+        />
+        @if (isInvalid('previousClaims')) {
+          <span class="field-error">Cannot be negative.</span>
+        }
+      </div>
+
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn--primary" [disabled]="loading()">
+        @if (loading()) {
+          <span class="spinner"></span> Calculating...
+        } @else {
+          Get Quote
+        }
+      </button>
+    </div>
+  </form>
+
+  @if (errorMessage()) {
+    <div class="alert alert--error" role="alert">
+      <strong>Error:</strong> {{ errorMessage() }}
+    </div>
+  }
+
+  @if (quoteResult(); as result) {
+    <section class="quote-result" aria-live="polite">
+      <div class="result-header">
+        <h2>Your Quote</h2>
+        <app-risk-band-badge [riskBand]="result.riskBand" />
+      </div>
+
+      <div class="premium-grid">
+        <div class="premium-card">
+          <span class="premium-label">Monthly Premium</span>
+          <span class="premium-amount">£{{ result.monthlyPremium | number:'1.2-2' }}</span>
+        </div>
+        <div class="premium-card premium-card--annual">
+          <span class="premium-label">Annual Premium</span>
+          <span class="premium-amount">£{{ result.annualPremium | number:'1.2-2' }}</span>
+        </div>
+      </div>
+
+      <div class="result-summary">
+        <p>{{ result.riskSummary }}</p>
+      </div>
+
+      @if (result.appliedFactors.length > 0) {
+        <div class="risk-factors">
+          <h3>Risk Factors Applied</h3>
+          <ul>
+            @for (factor of result.appliedFactors; track factor.id) {
+              <li class="risk-factor">
+                <span class="risk-factor__desc">{{ factor.description }}</span>
+                <span class="risk-factor__points">+{{ factor.points }} pts</span>
+              </li>
+            }
+          </ul>
+          <p class="text-muted">Total risk score: {{ result.riskScore }}</p>
+        </div>
+      }
+
+      <div class="result-footer">
+        <p class="text-muted">
+          Base premium £{{ result.coverageDetails.basePremium }}
+          × risk multiplier {{ result.coverageDetails.riskMultiplier }}
+          × coverage factor {{ result.coverageDetails.coverageLoadFactor }}
+          · KB v{{ result.coverageDetails.kbVersion }}
+        </p>
+        <button type="button" class="btn btn--secondary" (click)="reset()">Get Another Quote</button>
+      </div>
+    </section>
+  }
+</div>

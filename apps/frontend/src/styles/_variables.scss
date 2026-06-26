@@ -1,0 +1,30 @@
+:root {
+  --color-primary: #1a3c5e;
+  --color-primary-light: #2a5f9e;
+  --color-accent: #e8920a;
+
+  --color-standard: #2e7d32;
+  --color-standard-bg: #e8f5e9;
+  --color-elevated: #f57c00;
+  --color-elevated-bg: #fff3e0;
+  --color-high-risk: #c62828;
+  --color-high-risk-bg: #ffebee;
+
+  --color-surface: #ffffff;
+  --color-background: #f4f6f9;
+  --color-border: #d0d7e3;
+  --color-text: #1a1a2e;
+  --color-text-muted: #5a6a7e;
+  --color-error: #d32f2f;
+  --color-error-bg: #ffebee;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+
+  --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Consolas', 'Courier New', monospace;
+}

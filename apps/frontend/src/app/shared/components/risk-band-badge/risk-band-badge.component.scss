@@ -1,0 +1,25 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+
+  &--standard {
+    background-color: var(--color-standard-bg);
+    color: var(--color-standard);
+  }
+
+  &--elevated {
+    background-color: var(--color-elevated-bg);
+    color: var(--color-elevated);
+  }
+
+  &--high-risk {
+    background-color: var(--color-high-risk-bg);
+    color: var(--color-high-risk);
+  }
+}
