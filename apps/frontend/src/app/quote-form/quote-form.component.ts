@@ -1,7 +1,8 @@
-import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Component, inject, signal } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { delay } from 'rxjs';
 import { QuoteResponse } from 'shared';
 import { RiskBandBadgeComponent } from '../shared/components/risk-band-badge/risk-band-badge.component';
 
@@ -52,7 +53,7 @@ export class QuoteFormComponent {
       previousClaims: Number(this.form.value.previousClaims),
     };
 
-    this.http.post<QuoteResponse>(API_URL, payload).subscribe({
+    this.http.post<QuoteResponse>(API_URL, payload).pipe(delay(2000)).subscribe({
       next: (result) => {
         this.quoteResult.set(result);
         this.loading.set(false);
