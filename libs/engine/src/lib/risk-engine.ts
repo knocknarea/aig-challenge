@@ -1,23 +1,24 @@
 import { AppliedFactor, Kb, QuoteRequest, QuoteResponse, RiskBand } from 'shared';
+import { coerceToNumber } from './coerce-value';
 import { evaluateCondition } from './condition-evaluator';
 
 export function calculateQuote(request: QuoteRequest, kb: Kb): QuoteResponse {
   const input = request as unknown as Record<string, unknown>;
-  const appliedFactors: AppliedFactor[] = [];
-  let riskScore = 0;
 
-  for (const factor of kb.factors) {
-    if (evaluateCondition(factor.condition, input)) {
+  // map: evaluate each KB factor — null means condition did not match
+  // filter (type predicate): narrow (AppliedFactor | null)[] → AppliedFactor[]
+  // reduce: fold matched factor points into a total risk score
+  const appliedFactors: AppliedFactor[] = kb.factors
+    .map((factor): AppliedFactor | null => {
+      if (!evaluateCondition(factor.condition, input)) return null;
       const fieldValue = input[factor.condition.field];
-      const points =
-        factor.perOccurrence && typeof fieldValue === 'number'
-          ? factor.points * fieldValue
-          : factor.points;
+      const n = factor.perOccurrence ? coerceToNumber(fieldValue) : null;
+      const points = n !== null ? factor.points * n : factor.points;
+      return { id: factor.id, description: factor.description, points };
+    })
+    .filter((f): f is AppliedFactor => f !== null);
 
-      appliedFactors.push({ id: factor.id, description: factor.description, points });
-      riskScore += points;
-    }
-  }
+  const riskScore = appliedFactors.reduce((acc, f) => acc + f.points, 0);
 
   const { riskBand, riskMultiplier } = resolveRiskBand(riskScore, kb);
 

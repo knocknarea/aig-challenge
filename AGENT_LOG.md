@@ -101,3 +101,35 @@ A running record of work done by Claude in this project. Entries are appended ch
 - KB loaded once at app startup in `app.ts` (not per-request) — appropriate for a local file
 - `starts_with_any` added to condition evaluator proactively, anticipating the live demo flood-zone postcode factor
 - Removed auto-generated `nx-welcome.ts` and updated `app.spec.ts` to test the actual app component
+
+---
+
+## [2026-06-26] Engine algorithm design session — Strategy pattern, coercion, map/reduce
+
+**Prompt given:** Examine and improve the engine algorithm and data models.
+
+**GoF Strategy pattern — condition evaluator (`libs/engine/src/lib/condition-evaluator.ts`)**
+- Current `switch` statement replaced by a strategy map: one object per KB operator
+- New file `operator-strategies.ts` defines `ConditionStrategy<Op>` interface and `StrategyMap` mapped type
+- All 9 operator strategies declared using `satisfies StrategyMap` — enforces exhaustiveness at compile time and gives each `evaluate()` method the narrowed condition type via contextual typing (e.g. `between` strategy sees `condition.min/max`, not `condition.value`)
+- `condition-evaluator.ts` becomes a single dispatch call; a single `as` cast handles the "correlated union" TypeScript limitation, localised and commented
+- Adding a new operator in future: add to Zod schema in `shared`, add one strategy object — nothing else
+
+**Type coercion helpers (`libs/engine/src/lib/coerce-value.ts`)**
+- `coerceToNumber(value: unknown): number | null` — handles numeric strings ("25" → 25), guards NaN, rejects null/objects
+- `coerceToString(value: unknown): string | null` — bidirectional: strings identity-returned, finite numbers coerced to string (42 → "42"), NaN/Infinity/null rejected
+- Used inside every strategy instead of raw `typeof` guards — makes evaluation robust to form data, CSV imports, or query-string sources delivering values as strings
+- `eq` dispatches on `condition.value`'s type to choose coercion direction
+- Agreed: bidirectional coercion — `coerceToString` coerces finite numbers to strings as well as handling native strings
+
+**Map/reduce scoring (`libs/engine/src/lib/risk-engine.ts`)**
+- Replaces mutable `for` loop + push/accumulate pattern
+- `.map()` evaluates each KB factor → `AppliedFactor | null`
+- `.filter((f): f is AppliedFactor => f !== null)` narrows type (type predicate, no cast)
+- `.reduce()` folds matched factor points into `riskScore`
+- Existing helpers (`resolveRiskBand`, `buildSummary`, `round2`) unchanged
+
+**Test strategy**
+- Existing `engine.spec.ts` (5 tests) must pass unchanged — regression gate for the refactor
+- New tests go in `operator-strategies.spec.ts` (per-operator isolation + coercion edge cases)
+- Branch: `feature/engine-strategy-and-scoring`
