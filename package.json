@@ -4,6 +4,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
+    "start": "nx run-many --target=serve --projects=frontend,backend",
     "start:frontend": "nx serve frontend",
     "start:backend": "nx serve backend"
   },

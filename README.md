@@ -13,14 +13,17 @@ npm install
 
 ## Running the services
 
-**Backend** (http://localhost:3000):
+**Both services together:**
 ```bash
-npm run start:backend
+npm start
 ```
 
-**Frontend** (http://localhost:4200):
+This starts the Angular dev server (http://localhost:4200) and the Fastify backend (http://localhost:3000) simultaneously.
+
+**Individually:**
 ```bash
-npm run start:frontend
+npm run start:backend    # Fastify on port 3000
+npm run start:frontend   # Angular on port 4200
 ```
 
 ## Knowledge Base

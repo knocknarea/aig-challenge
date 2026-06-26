@@ -24,3 +24,38 @@
 ## Project Documentation
 
 6. **Maintain README.md.** Keep `README.md` up to date as the application evolves. Update it whenever the project structure, stack, or run instructions change.
+
+---
+
+## Architecture & Conventions
+
+### Stack
+- **Nx 23 monorepo** — single repo, single `package.json`, shared `node_modules`
+- **TypeScript throughout** — all apps and libs; no JavaScript files
+- **Angular 21** (frontend) — standalone components only, no NgModules
+- **Fastify** (backend) — `fastify-type-provider-zod`, `@fastify/cors`, `@fastify/aws-lambda`
+- **Zod** (shared) — in `libs/shared`; single source of truth for request/response shapes and KB schema
+
+### Project structure
+- `apps/frontend` — Angular app. Each component has separate `.ts`, `.html`, `.scss` files. Signals for all local UI state (`loading`, `quoteResult`, `errorMessage`). No component libraries.
+- `apps/backend` — `app.ts` (Fastify app, deployment-agnostic), `server.ts` (local dev / Fargate listener), `handler.ts` (Lambda export via `@fastify/aws-lambda`).
+- `libs/shared` — Zod schemas + inferred TypeScript types only. No runtime logic. Used by both frontend (types) and backend (validation).
+- `libs/engine` — Pure business logic: `kb-loader.ts`, `condition-evaluator.ts`, `risk-engine.ts`. No Fastify, no Angular. Used only by the backend.
+- `risk-kb.json` — Knowledge Base at the repo root. Never move it into a source folder.
+
+### Coding rules
+- **KB-driven scoring only.** No hardcoded scoring values in application code. All factors, points, operators, thresholds, and multipliers live in `risk-kb.json`.
+- **No external UI component libraries.** All CSS is hand-written. CSS custom properties are defined in `apps/frontend/src/styles/_variables.scss`.
+- **No LLMs or external APIs from the backend.** All scoring is deterministic and self-contained.
+- **Angular Signals only for local UI state.** No `BehaviorSubject` or `Subject`.
+- **Condition evaluator is generic.** Adding a new risk factor = KB change only. Adding a new operator = edit `libs/engine/src/lib/condition-evaluator.ts` only.
+
+### TypeScript path aliases (defined in `tsconfig.base.json`)
+- `import { ... } from 'shared'` — types and Zod schemas
+- `import { ... } from 'engine'` — `loadKb`, `calculateQuote`, `evaluateCondition`
+
+### Running the workspace
+- `npm start` → both services simultaneously (Angular on 4200, Fastify on 3000)
+- `npm run start:frontend` → Angular dev server only
+- `npm run start:backend` → Fastify only
+- `npx nx run-many --targets=build,test --projects=shared,engine,backend,frontend` → full build + test
