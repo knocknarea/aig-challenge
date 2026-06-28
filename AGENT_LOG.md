@@ -198,3 +198,38 @@ A running record of work done by Claude in this project. Entries are appended ch
 - SOLUTION.md
 - Frontend improvements
 - Committing and merging `feature/kb-hot-reload-and-health`
+
+---
+
+## [2026-06-28] Fargate Health — ECS metadata and /health alias
+
+**User prompts / decisions:**
+- /plan "Fargate Health"
+- "Include ECS metadata in the model response from /health/ready. Also add a GET /health in the app that proxies /health/ready"
+- Correction during planning: "When a method can return one of two or more types, can you cast the json created to the type intended, i.e return { json } as type. It makes it a little clearer for those developers coming after (and also will flag if someone alters the json incorrectly)"
+- "Cut a feature branch and name appropriately. Update the agent log also"
+
+**Branch:** `feature/fargate-health-ecs-metadata`
+
+**What was implemented:**
+- `libs/shared/src/lib/health.schema.ts` — added `EcsMetadataSchema` (cluster, taskArn, taskFamily, taskRevision) and optional `ecs` field to both `HealthReadyOkResponseSchema` and `HealthReadyDegradedResponseSchema`; exported `EcsMetadata` type
+- `apps/backend/src/ecs-metadata.ts` (new) — `fetchEcsMetadata()` using Node 20 `fetch`; reads `ECS_CONTAINER_METADATA_URI_V4` env var; returns `null` when not on Fargate or on any error — callers omit the `ecs` field when `null`; returns object `as EcsMetadata`
+- `apps/backend/src/app.ts` — extracted `buildReadyBody()` helper inside `buildApp()`; both `/health/ready` and `/health` (ALB default probe path) share this helper; returned object literals cast to `as HealthReadyOkResponse` / `as HealthReadyDegradedResponse` per preference
+
+**Design decisions:**
+- `ecs` is `optional()` in both Zod schemas — absent in local dev and Lambda, present only on Fargate
+- `buildReadyBody()` is a plain async function (no Fastify params), avoiding the need for explicit `FastifyRequest`/`FastifyReply` type imports; both routes call it identically
+- `GET /health` returns an identical response to `/health/ready` — motivator is ALB health check probing `/health` by default, avoiding deployment-side config overhead
+- Explicit `as Type` casts on returned object literals so union-typed functions make their branch intent clear and TypeScript flags shape regressions
+
+**Files created or modified:**
+- `libs/shared/src/lib/health.schema.ts` (updated)
+- `apps/backend/src/ecs-metadata.ts` (new)
+- `apps/backend/src/app.ts` (updated)
+
+**Verification:** 52 tests pass (shared 1, engine 43, backend 8); `nx build shared backend` compiles clean.
+
+**Deferred:**
+- SOLUTION.md
+- Frontend improvements
+- Committing and merging feature branches to main

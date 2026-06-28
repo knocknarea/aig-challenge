@@ -12,6 +12,7 @@ import {
 } from 'shared';
 import { calculateQuote } from 'engine';
 import { KbManager } from './kb-manager';
+import { fetchEcsMetadata } from './ecs-metadata';
 
 export function buildApp(kbManager: KbManager) {
   const app = Fastify({ logger: true }).withTypeProvider<ZodTypeProvider>();
@@ -28,33 +29,59 @@ export function buildApp(kbManager: KbManager) {
     uptime: process.uptime(),
   }));
 
-  app.get('/health/ready', {
-    schema: {
-      response: {
-        200: HealthReadyOkResponseSchema,
-        503: HealthReadyDegradedResponseSchema,
-      },
+  const readySchema = {
+    response: {
+      200: HealthReadyOkResponseSchema,
+      503: HealthReadyDegradedResponseSchema,
     },
-  }, async (_request, reply): Promise<HealthReadyOkResponse | HealthReadyDegradedResponse> => {
+  };
+
+  async function buildReadyBody(): Promise<
+    { body: HealthReadyOkResponse; code: 200 } | { body: HealthReadyDegradedResponse; code: 503 }
+  > {
     const s = kbManager.getStatus();
+    const ecs = (await fetchEcsMetadata()) ?? undefined;
     if (s.state === 'ok') {
       return {
-        status: 'ready',
-        uptime: process.uptime(),
-        kb: { version: s.version, loadedAt: s.loadedAt.toISOString() },
+        code: 200,
+        body: {
+          status: 'ready',
+          uptime: process.uptime(),
+          kb: { version: s.version, loadedAt: s.loadedAt.toISOString() },
+          ecs,
+        } as HealthReadyOkResponse,
       };
     }
-    reply.code(503);
     return {
-      status: 'degraded',
-      uptime: process.uptime(),
-      kb: {
-        lastGoodVersion: s.lastGoodVersion,
-        lastGoodAt: s.lastGoodAt.toISOString(),
-        errorReason: s.reason,
-      },
+      code: 503,
+      body: {
+        status: 'degraded',
+        uptime: process.uptime(),
+        kb: {
+          lastGoodVersion: s.lastGoodVersion,
+          lastGoodAt: s.lastGoodAt.toISOString(),
+          errorReason: s.reason,
+        },
+        ecs,
+      } as HealthReadyDegradedResponse,
     };
-  });
+  }
+
+  app.get('/health/ready', { schema: readySchema },
+    async (_request, reply): Promise<HealthReadyOkResponse | HealthReadyDegradedResponse> => {
+      const { code, body } = await buildReadyBody();
+      if (code !== 200) reply.code(code);
+      return body;
+    },
+  );
+
+  app.get('/health', { schema: readySchema },  // ALB default probe path — same response as /health/ready
+    async (_request, reply): Promise<HealthReadyOkResponse | HealthReadyDegradedResponse> => {
+      const { code, body } = await buildReadyBody();
+      if (code !== 200) reply.code(code);
+      return body;
+    },
+  );
 
   app.post('/policy/quote', {
     schema: { body: QuoteRequestSchema },
