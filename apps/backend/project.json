@@ -27,6 +27,8 @@
       "configurations": {
         "development": {},
         "production": {
+          "bundle": true,
+          "additionalEntryPoints": ["apps/backend/src/handler.ts"],
           "esbuildOptions": {
             "sourcemap": false,
             "outExtension": {
