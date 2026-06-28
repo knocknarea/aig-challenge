@@ -13,6 +13,7 @@ COPY nx.json tsconfig.base.json ./
 COPY apps/backend apps/backend
 COPY libs/shared  libs/shared
 COPY libs/engine  libs/engine
+COPY risk-kb.json ./
 
 # BuildKit cache: Nx computation cache persists between builds;
 # unchanged libs (shared, engine) skip recompilation on backend-only changes.
@@ -38,7 +39,7 @@ COPY --from=builder --chown=node:node /build/dist/apps/backend/node_modules ./no
 # KB file at WORKDIR — process.cwd() resolves to /app, so no KB_PATH override needed
 COPY --from=builder --chown=node:node /build/risk-kb.json .
 
-ENV NODE_ENV=production PORT=3000 HOST=0.0.0.0
+ENV NODE_ENV=production PORT=3000 HOST=0.0.0.0 KB_PATH=/app/risk-kb.json
 
 EXPOSE 3000
 
@@ -58,6 +59,8 @@ FROM public.ecr.aws/lambda/nodejs:22 AS lambda
 COPY --from=builder /build/dist/apps/backend/handler.js  ${LAMBDA_TASK_ROOT}/
 COPY --from=builder /build/dist/apps/backend/node_modules ${LAMBDA_TASK_ROOT}/node_modules
 COPY --from=builder /build/risk-kb.json                  ${LAMBDA_TASK_ROOT}/
+
+ENV KB_PATH=/var/task/risk-kb.json
 
 # Lambda runtime interface manages its own user context (sbx_user1051) internally;
 # the container must start as root for the runtime to initialise correctly.
