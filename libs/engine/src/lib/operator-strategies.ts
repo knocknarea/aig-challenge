@@ -1,22 +1,24 @@
-import { KbCondition } from 'shared';
+import { LeafCondition } from 'shared';
 import { coerceToNumber, coerceToString } from './coerce-value';
 
 /**
- * Strategy interface for one operator variant.
+ * Strategy interface for one leaf operator variant.
  * Method signature (not property function type) is intentional — it enables
  * method bivariance so ConditionStrategy<'eq'> is assignable to
- * ConditionStrategy<KbCondition['operator']> without an `unknown` intermediate.
+ * ConditionStrategy<LeafCondition['operator']> without an `unknown` intermediate.
+ * Compound operators (and, or, not) are not strategies — they are handled by
+ * recursive dispatch in condition-evaluator.ts.
  */
-export interface ConditionStrategy<Op extends KbCondition['operator']> {
-  evaluate(condition: Extract<KbCondition, { operator: Op }>, value: unknown): boolean;
+export interface ConditionStrategy<Op extends LeafCondition['operator']> {
+  evaluate(condition: Extract<LeafCondition, { operator: Op }>, value: unknown): boolean;
 }
 
 /**
- * Exhaustive mapped type: every operator must have a strategy entry.
- * Adding an operator to KbConditionSchema without updating this map = compile error.
+ * Exhaustive mapped type: every leaf operator must have a strategy entry.
+ * Adding a leaf operator to LeafConditionSchema without updating this map = compile error.
  */
 export type StrategyMap = {
-  [Op in KbCondition['operator']]: ConditionStrategy<Op>;
+  [Op in LeafCondition['operator']]: ConditionStrategy<Op>;
 };
 
 /**

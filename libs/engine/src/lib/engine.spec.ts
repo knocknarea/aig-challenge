@@ -1,6 +1,7 @@
 import { calculateQuote } from './risk-engine';
 import { Kb, QuoteRequest } from 'shared';
 
+
 const TEST_KB: Kb = {
   version: '1.0.0',
   basePremium: 300,
@@ -110,5 +111,140 @@ describe('calculateQuote', () => {
     expect(result.coverageDetails.kbVersion).toBe('1.0.0');
     expect(result.coverageDetails.basePremium).toBe(300);
     expect(result.coverageDetails.coverageLoadFactor).toBe(1.2);
+  });
+});
+
+const COMPOUND_KB: Kb = {
+  version: '1.0.0',
+  basePremium: 300,
+  coverageLoadFactor: 1.2,
+  riskBands: {
+    STANDARD: { min: 0, max: 25, riskMultiplier: 1.0 },
+    ELEVATED: { min: 26, max: 60, riskMultiplier: 1.5 },
+    HIGH_RISK: { min: 61, max: 999, riskMultiplier: 2.2 },
+  },
+  factors: [
+    {
+      id: 'flat_and_high_value',
+      description: 'High-value flat',
+      condition: {
+        operator: 'and',
+        conditions: [
+          { field: 'propertyType', operator: 'eq', value: 'Flat' },
+          { field: 'propertyValue', operator: 'gt', value: 500000 },
+        ],
+      },
+      points: 30,
+    },
+    {
+      id: 'young_or_elderly',
+      description: 'Under 25 or over 75',
+      condition: {
+        operator: 'or',
+        conditions: [
+          { field: 'age', operator: 'lt', value: 25 },
+          { field: 'age', operator: 'gt', value: 75 },
+        ],
+      },
+      points: 20,
+    },
+    {
+      id: 'not_house',
+      description: 'Not a house',
+      condition: {
+        operator: 'not',
+        condition: { field: 'propertyType', operator: 'eq', value: 'House' },
+      },
+      points: 10,
+    },
+  ],
+};
+
+describe('calculateQuote — compound conditions', () => {
+  it('AND: applies factor when all sub-conditions match', () => {
+    const result = calculateQuote(
+      { ...BASE_REQUEST, propertyType: 'Flat', propertyValue: 600000 },
+      COMPOUND_KB,
+    );
+    expect(result.appliedFactors.find(f => f.id === 'flat_and_high_value')).toBeDefined();
+  });
+
+  it('AND: does not apply when only one sub-condition matches', () => {
+    const result = calculateQuote(
+      { ...BASE_REQUEST, propertyType: 'House', propertyValue: 600000 },
+      COMPOUND_KB,
+    );
+    expect(result.appliedFactors.find(f => f.id === 'flat_and_high_value')).toBeUndefined();
+  });
+
+  it('AND: does not apply when neither sub-condition matches', () => {
+    const result = calculateQuote(BASE_REQUEST, COMPOUND_KB);
+    expect(result.appliedFactors.find(f => f.id === 'flat_and_high_value')).toBeUndefined();
+  });
+
+  it('OR: applies factor when the first sub-condition matches', () => {
+    const result = calculateQuote({ ...BASE_REQUEST, age: 20 }, COMPOUND_KB);
+    expect(result.appliedFactors.find(f => f.id === 'young_or_elderly')).toBeDefined();
+  });
+
+  it('OR: applies factor when the second sub-condition matches', () => {
+    const result = calculateQuote({ ...BASE_REQUEST, age: 80 }, COMPOUND_KB);
+    expect(result.appliedFactors.find(f => f.id === 'young_or_elderly')).toBeDefined();
+  });
+
+  it('OR: does not apply when neither sub-condition matches', () => {
+    const result = calculateQuote({ ...BASE_REQUEST, age: 35 }, COMPOUND_KB);
+    expect(result.appliedFactors.find(f => f.id === 'young_or_elderly')).toBeUndefined();
+  });
+
+  it('NOT: applies factor when the inner condition is false', () => {
+    const result = calculateQuote({ ...BASE_REQUEST, propertyType: 'Flat' }, COMPOUND_KB);
+    expect(result.appliedFactors.find(f => f.id === 'not_house')).toBeDefined();
+  });
+
+  it('NOT: does not apply when the inner condition is true', () => {
+    const result = calculateQuote({ ...BASE_REQUEST, propertyType: 'House' }, COMPOUND_KB);
+    expect(result.appliedFactors.find(f => f.id === 'not_house')).toBeUndefined();
+  });
+
+  it('nested AND(OR, leaf): resolves correctly at arbitrary depth', () => {
+    const nestedKb: Kb = {
+      ...COMPOUND_KB,
+      factors: [
+        {
+          id: 'nested',
+          description: 'Young or elderly AND in a flat',
+          condition: {
+            operator: 'and',
+            conditions: [
+              {
+                operator: 'or',
+                conditions: [
+                  { field: 'age', operator: 'lt', value: 25 },
+                  { field: 'age', operator: 'gt', value: 75 },
+                ],
+              },
+              { field: 'propertyType', operator: 'eq', value: 'Flat' },
+            ],
+          },
+          points: 40,
+        },
+      ],
+    };
+
+    // Young AND flat → matches
+    expect(
+      calculateQuote({ ...BASE_REQUEST, age: 20, propertyType: 'Flat' }, nestedKb).appliedFactors,
+    ).toHaveLength(1);
+
+    // Young AND house → AND fails (second branch false)
+    expect(
+      calculateQuote({ ...BASE_REQUEST, age: 20, propertyType: 'House' }, nestedKb).appliedFactors,
+    ).toHaveLength(0);
+
+    // Middle-aged AND flat → AND fails (OR is false)
+    expect(
+      calculateQuote({ ...BASE_REQUEST, age: 35, propertyType: 'Flat' }, nestedKb).appliedFactors,
+    ).toHaveLength(0);
   });
 });
