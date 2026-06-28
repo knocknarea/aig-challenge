@@ -233,3 +233,61 @@ A running record of work done by Claude in this project. Entries are appended ch
 - SOLUTION.md
 - Frontend improvements
 - Committing and merging feature branches to main
+
+---
+
+## [2026-06-28] Docker deployment — Fargate and Lambda images
+
+**User prompts / decisions:**
+- /plan "Backend Deployment"
+- Target: both Fargate and Lambda
+- IaC tool: Docker only (no CDK / Terraform)
+- CI/CD: out of scope
+- Question raised: "Consider using a multistage docker build that builds the backend as part of the process of producing the final layer. What are your thoughts on this in relation to nx in the docker build path?" — confirmed multi-stage with Nx in builder stage is the right approach; plan updated with BuildKit cache mount rationale
+- "Cut a feature branch. Update the agent log and update the README on how to build and locally run the docker deployment."
+
+**Branch:** `feature/docker-deployment`
+
+**What was implemented:**
+- `Dockerfile` (multi-stage, repo root):
+  - Stage 1 `builder`: full `npm ci` → `npx nx run backend:prune` (compile + prune lockfile + copy workspace modules) → `npm ci --omit=dev` in `dist/apps/backend/`
+  - BuildKit `--mount=type=cache` on `/root/.npm` and `/build/.nx/cache` so unchanged libs (shared, engine) skip recompilation on backend-only changes
+  - Stage 2 `fargate`: `node:22-alpine`, WORKDIR `/app`, copies dist + `risk-kb.json`, HEALTHCHECK on `/health/live`, `CMD ["node", "server.js"]`
+  - Stage 3 `lambda`: `public.ecr.aws/lambda/nodejs:22` base, copies dist + `risk-kb.json` to `LAMBDA_TASK_ROOT`, `CMD ["handler.handler"]`
+- `.dockerignore`: excludes `node_modules`, `dist`, `.git`, Nx cache, `coverage`, frontend app, spec files, markdown
+- `docker-compose.yml`: Fargate target on port 3000 for local testing
+- `README.md`: added Docker section covering build commands, local run via docker-compose, health endpoint smoke test, Lambda deployment note
+
+**Design decisions:**
+- Nx build runs inside the builder stage (not pre-built on host) for full reproducibility
+- `nx run backend:prune` is used (not just `nx build backend`) — the prune pipeline produces a pruned lockfile and copies workspace libs so the final dist is self-contained
+- KB path resolves via `process.cwd() + '/risk-kb.json'`; WORKDIR aligns with this so no `KB_PATH` override is needed in either image
+- `/health/live` (not `/health/ready`) used for the Fargate HEALTHCHECK — avoids a degraded KB state incorrectly killing a running task
+- Lambda container image used (not zip) — consistent with "Docker only" IaC decision
+
+**Files created or modified:**
+- `Dockerfile` (new, repo root)
+- `.dockerignore` (new, repo root)
+- `docker-compose.yml` (new, repo root)
+- `README.md` (Docker section added)
+- `AGENT_LOG.md` (this entry)
+
+**Deferred:**
+- Docker build smoke test (requires Docker daemon)
+- SOLUTION.md
+- Frontend improvements
+- Committing and merging feature branches to main
+
+---
+
+## [2026-06-28] Dockerfile USER hardening (amendment to Docker deployment)
+
+**User prompts / decisions:**
+- "The application should run as a USER rather than root"
+
+**What was implemented:**
+- Fargate stage: `COPY --chown=node:node` on both COPY instructions; `USER node` added before `CMD`. Uses the `node` user (uid 1000) built into `node:22-alpine` — no adduser step needed.
+- Lambda stage: left as root. The AWS Lambda runtime interface requires root to initialise and transitions to its own sandboxed user (`sbx_user1051`) internally at invocation time. A comment in the Dockerfile records this rationale.
+
+**Files modified:**
+- `Dockerfile`

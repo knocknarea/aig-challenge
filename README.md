@@ -11,6 +11,40 @@ A home insurance quoting tool. Customers enter their details and receive an inst
 npm install
 ```
 
+## Docker deployment
+
+The backend supports two AWS runtime targets from a single multi-stage `Dockerfile`. Docker 23+ (BuildKit enabled by default) is required; on older versions prefix commands with `DOCKER_BUILDKIT=1`.
+
+### Build images
+
+```bash
+# Fargate image — long-running Fastify server on port 3000
+docker build --target fargate -t policy-quote-backend:fargate .
+
+# Lambda container image — handler.js export via @fastify/aws-lambda
+docker build --target lambda -t policy-quote-backend:lambda .
+```
+
+Subsequent builds are fast: BuildKit caches the npm download cache and the Nx computation cache between runs, so only changed source files are recompiled.
+
+### Run locally (Fargate target)
+
+```bash
+docker-compose up backend
+```
+
+The backend is available at `http://localhost:3000`. Health check endpoints:
+
+```bash
+curl http://localhost:3000/health/live    # liveness — always 200
+curl http://localhost:3000/health/ready  # readiness — 200 ok / 503 degraded
+curl http://localhost:3000/health        # alias for /health/ready (ALB default probe path)
+```
+
+### Lambda target
+
+The Lambda image uses the `public.ecr.aws/lambda/nodejs:22` base. Push to ECR and configure the Lambda function with handler `handler.handler`. To test locally, use the [AWS Lambda Runtime Interface Emulator](https://github.com/aws/aws-lambda-runtime-interface-emulator).
+
 ## Running the services
 
 **Both services together:**
