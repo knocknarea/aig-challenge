@@ -15,7 +15,7 @@ export class KbManager {
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(kbPath?: string) {
-    this.kbPath = kbPath ?? process.env['KB_PATH'] ?? join(process.cwd(), 'risk-kb.json');
+    this.kbPath = kbPath ?? process.env['AIG_KB_PATH'] ?? join(process.cwd(), 'risk-kb.json');
     try {
       this.kb = loadKb(this.kbPath);
     } catch (err) {

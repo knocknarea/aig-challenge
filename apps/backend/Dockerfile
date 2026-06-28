@@ -36,10 +36,10 @@ WORKDIR /app
 COPY --from=builder --chown=node:node /build/dist/apps/backend/server.js .
 COPY --from=builder --chown=node:node /build/dist/apps/backend/node_modules ./node_modules
 
-# KB file at WORKDIR — process.cwd() resolves to /app, so no KB_PATH override needed
+# KB file at WORKDIR — AIG_KB_PATH set explicitly above
 COPY --from=builder --chown=node:node /build/risk-kb.json .
 
-ENV NODE_ENV=production PORT=3000 HOST=0.0.0.0 KB_PATH=/app/risk-kb.json
+ENV NODE_ENV=production AIG_PORT=3000 AIG_HOST=0.0.0.0 AIG_KB_PATH=/app/risk-kb.json
 
 EXPOSE 3000
 
@@ -60,7 +60,7 @@ COPY --from=builder /build/dist/apps/backend/handler.js  ${LAMBDA_TASK_ROOT}/
 COPY --from=builder /build/dist/apps/backend/node_modules ${LAMBDA_TASK_ROOT}/node_modules
 COPY --from=builder /build/risk-kb.json                  ${LAMBDA_TASK_ROOT}/
 
-ENV KB_PATH=/var/task/risk-kb.json
+ENV AIG_KB_PATH=/var/task/risk-kb.json
 
 # Lambda runtime interface manages its own user context (sbx_user1051) internally;
 # the container must start as root for the runtime to initialise correctly.
