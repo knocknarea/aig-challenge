@@ -11,7 +11,7 @@ export function calculateQuote(request: QuoteRequest, kb: Kb): QuoteResponse {
   const appliedFactors: AppliedFactor[] = kb.factors
     .map((factor): AppliedFactor | null => {
       if (!evaluateCondition(factor.condition, input)) return null;
-      const fieldValue = input[factor.condition.field];
+      const fieldValue = 'field' in factor.condition ? input[factor.condition.field] : undefined;
       const n = factor.perOccurrence ? coerceToNumber(fieldValue) : null;
       const points = n !== null ? factor.points * n : factor.points;
       return { id: factor.id, description: factor.description, points };

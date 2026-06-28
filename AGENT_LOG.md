@@ -426,3 +426,45 @@ With `bundle: false`, `generatePackageJson: true` used `apps/backend/package.jso
 - `docker-compose.yml`
 - `README.md`
 - `AGENT_LOG.md` (this entry)
+
+---
+
+## [2026-06-28] Planning — Compound Conditions in the Score Engine
+
+**User prompts / decisions:**
+- /plan "Augment Score Engine with Compound Conditions"
+- "The compound conditions should be typed instead of in place zod objects" — named `const` schemas required instead of inline `z.object()` literals inside the union
+
+**Branch:** `feature/compound-conditions`
+
+**What was planned (not yet implemented):**
+- Extend `KbConditionSchema` in `libs/shared` to support recursive `and`, `or`, `not` logical operators. The existing leaf operators stay in a renamed `LeafConditionSchema` (discriminated union). Three named schemas — `AndConditionSchema`, `OrConditionSchema`, `NotConditionSchema` — are defined as typed consts before being composed into `KbConditionSchema` via `z.union()`. `z.lazy()` is placed inside each compound schema (on the `conditions` / `condition` fields) to defer the self-referential `KbConditionSchema` reference until parse time. `KbCondition` is declared as a hand-written recursive TypeScript type to break the `z.infer` circularity.
+- `libs/engine/src/lib/operator-strategies.ts` — narrow `ConditionStrategy` and `StrategyMap` from `KbCondition['operator']` to `LeafCondition['operator']`; compound operators are not strategies.
+- `libs/engine/src/lib/condition-evaluator.ts` — add three compound branches (`and → .every()`, `or → .some()`, `not → !recursive`) before the strategy dispatch; TypeScript narrows to `LeafCondition` after the branches.
+- `libs/engine/src/lib/risk-engine.ts` — fix `factor.condition.field` access (line 14) with `'field' in factor.condition` narrowing check; compound conditions with `perOccurrence` fall back safely to flat scoring.
+- `libs/engine/src/lib/engine.spec.ts` — new describe block with 9 tests covering AND (match all / partial / none), OR (first match / second match / none), NOT (inner false / inner true), and a nested `AND(OR, leaf)` depth test.
+- `risk-kb.json` — add `flat_high_value` compound factor: `AND(propertyType eq Flat, propertyValue gt 500000)`, 20 points.
+
+**Deferred:**
+- Implementation (plan approved, work not yet started)
+
+---
+
+## [2026-06-28] Discussion — Compound condition precedence and deferred features
+
+**User prompts / decisions:**
+- "What if a simple condition triggers that is one part of a compound condition... should we think about precedence?"
+- "Let's not do anything about this other than log that we discussed it in the agent log and maybe note it in the solution markdown as something I would have done with more time. Also add that I would like to have explored postcode validation and a skill that configures the UI with AIG style guide and layout"
+
+**Discussion summary:**
+The additive scoring model means that if a simple factor (`propertyValue > 500000`) and a compound factor (`propertyType == 'Flat' AND propertyValue > 500000`) both match, both score. Two approaches were discussed:
+1. **Calibrate points in the KB** — compound factor points represent marginal risk above the constituent simple factors; no engine change needed
+2. **`excludes: string[]` on `KbFactorSchema`** — when a compound factor fires, it suppresses the listed factor IDs; keeps logic in the KB, requires a small engine-level filter after the scoring map
+
+**Decision:** No implementation. Documented in SOLUTION.md under "Given more time."
+
+**Files modified:**
+- `AGENT_LOG.md` (this entry)
+- `SOLUTION.md` (deferred items section added)
+
+---
