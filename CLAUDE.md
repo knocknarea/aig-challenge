@@ -16,9 +16,20 @@
 
 ```
 ## [YYYY-MM-DD] <short title>
-- What was done and why
-- Files created or modified
-- Decisions made or deferred
+
+**User prompts / decisions:**
+- The user's actual question or instruction (verbatim or close paraphrase)
+- Specific choices the user made when presented with alternatives
+- Amendments or corrections the user asked for mid-session
+
+**What was implemented:**
+- What was built or changed, and why
+
+**Files created or modified:**
+- Key files affected
+
+**Deferred:**
+- Any decisions or tasks explicitly left for a later session
 ```
 
 ## Project Documentation
