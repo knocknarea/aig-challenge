@@ -5,6 +5,13 @@ export const HealthLiveResponseSchema = z.object({
   uptime: z.number(),
 });
 
+export const EcsMetadataSchema = z.object({
+  cluster: z.string(),
+  taskArn: z.string(),
+  taskFamily: z.string(),
+  taskRevision: z.string(),
+});
+
 export const HealthReadyOkResponseSchema = z.object({
   status: z.literal('ready'),
   uptime: z.number(),
@@ -12,6 +19,7 @@ export const HealthReadyOkResponseSchema = z.object({
     version: z.string(),
     loadedAt: z.string(), // ISO date string on the wire
   }),
+  ecs: EcsMetadataSchema.optional(),
 });
 
 // path is deliberately omitted from all health responses —
@@ -24,8 +32,10 @@ export const HealthReadyDegradedResponseSchema = z.object({
     lastGoodAt: z.string(), // ISO date string on the wire
     errorReason: z.string(),
   }),
+  ecs: EcsMetadataSchema.optional(),
 });
 
 export type HealthLiveResponse = z.infer<typeof HealthLiveResponseSchema>;
+export type EcsMetadata = z.infer<typeof EcsMetadataSchema>;
 export type HealthReadyOkResponse = z.infer<typeof HealthReadyOkResponseSchema>;
 export type HealthReadyDegradedResponse = z.infer<typeof HealthReadyDegradedResponseSchema>;
