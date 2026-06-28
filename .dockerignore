@@ -4,7 +4,6 @@ dist
 .nx/cache
 .nx/workspace-data
 coverage
-apps/frontend
 apps/frontend-e2e
 **/*.spec.ts
 **/*.md
