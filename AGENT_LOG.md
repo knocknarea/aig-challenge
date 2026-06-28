@@ -291,3 +291,50 @@ A running record of work done by Claude in this project. Entries are appended ch
 
 **Files modified:**
 - `Dockerfile`
+
+---
+
+## [2026-06-28] Frontend deployment — nginx Docker container + backend Dockerfile relocation
+
+**User prompts / decisions:**
+- /plan "Frontend Deployment"
+- Confirmed: nginx Docker container (consistent with backend Docker-only approach)
+- Confirmed: nginx reverse proxy for API URL — Angular calls `/api/policy/quote` (relative); nginx proxies `/api/*` to backend
+- "Can we also use multilayered docker build for the UI such that the UI is build as part of the docker build" — confirmed multi-stage (Angular build inside Docker builder stage)
+- "Will the change of API_URL break local non docker testing?" — identified issue; resolved with Angular dev server proxy config (`proxy.conf.json`)
+- "Let's document this in the agent log and cut a branch to test this plan"
+
+**Branch:** `feature/frontend-deployment`
+
+**What was implemented:**
+- `git mv Dockerfile apps/backend/Dockerfile` — backend Dockerfile moved to live beside the app it builds
+- `apps/frontend/Dockerfile` (new) — multi-stage: builder (Node 22, `npx nx build frontend --configuration=production` with BuildKit cache mounts) → nginx:alpine serving static files
+- `apps/frontend/nginx.conf.template` (new) — SPA routing (`try_files $uri $uri/ /index.html`), `/api/` reverse proxy to `${BACKEND_URL}` (substituted at container startup), gzip enabled
+- `apps/frontend/docker-entrypoint.sh` (new) — runs `envsubst '${BACKEND_URL}'` scoped to only our variable (avoids clobbering nginx's own `$host`, `$remote_addr` etc.), then execs nginx
+- `apps/frontend/proxy.conf.json` (new) — Angular dev server proxy: `/api/*` → `http://localhost:3000` with `pathRewrite: { "^/api": "" }` so local `npm start` works identically to Docker
+- `apps/frontend/project.json` — `proxyConfig: apps/frontend/proxy.conf.json` added to `serve` target options
+- `apps/frontend/src/app/quote-form/quote-form.component.ts` — `API_URL` changed from `http://localhost:3000/policy/quote` to `/api/policy/quote`
+- `docker-compose.yml` — backend updated to use `apps/backend/Dockerfile`; frontend service added with `BACKEND_URL: http://backend:3000`
+- `README.md` — Docker section updated with new file paths and full-stack `docker-compose up --build` instructions
+
+**Key design decisions:**
+- `envsubst '${BACKEND_URL}'` (scoped) in the entrypoint — essential because unscoped `envsubst` would replace nginx variables like `$host` with empty strings, breaking the config
+- Angular dev proxy mirrors nginx exactly — same relative URL works in both local dev and Docker without any code difference
+- `libs/engine` not included in frontend builder — engine is backend-only per architecture; only `libs/shared` (types) is needed
+
+**Files created or modified:**
+- `apps/backend/Dockerfile` (moved from repo root)
+- `apps/frontend/Dockerfile` (new)
+- `apps/frontend/nginx.conf.template` (new)
+- `apps/frontend/docker-entrypoint.sh` (new)
+- `apps/frontend/proxy.conf.json` (new)
+- `apps/frontend/project.json` (proxyConfig added)
+- `apps/frontend/src/app/quote-form/quote-form.component.ts` (API_URL updated)
+- `docker-compose.yml` (updated)
+- `README.md` (Docker section updated)
+- `AGENT_LOG.md` (this entry)
+
+**Deferred:**
+- Docker build smoke test (requires Docker daemon)
+- SOLUTION.md
+- Merging feature branches to main

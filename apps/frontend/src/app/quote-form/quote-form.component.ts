@@ -6,7 +6,7 @@ import { delay } from 'rxjs';
 import { QuoteResponse } from 'shared';
 import { RiskBandBadgeComponent } from '../shared/components/risk-band-badge/risk-band-badge.component';
 
-const API_URL = 'http://localhost:3000/policy/quote';
+const API_URL = '/api/policy/quote';
 
 @Component({
   selector: 'app-quote-form',
