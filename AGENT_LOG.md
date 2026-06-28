@@ -125,3 +125,76 @@ A running record of work done by Claude in this project. Entries are appended ch
 - SOLUTION.md
 - Frontend improvements
 - Merging `feature/engine-strategy-and-scoring` to main
+
+---
+
+## [2026-06-28] KB hot-reload, file watching, and split health endpoints
+
+**User prompts / decisions:**
+- "model versioning, loading and health"
+- On model versioning: "Closer to option 1. The KB schema is versioned. I would like to monitor for changes to the source KB json file after initial load. If the version changes, then the loader should attempt to reload it. If the updated version is not valid, the last good loaded KB data is used, otherwise the backend switches to the new version without need to restart"
+- On loading: startup error handling + monitor for changes to `risk-kb.json` + attempt reload if version changes
+- On health: both enriched detail and liveness/readiness split
+
+**What was implemented:**
+- New `apps/backend/src/kb-manager.ts` — `KbManager` class with `KbLoadStatus` discriminated union type
+  - Constructor loads KB synchronously; rethrows with structured `KB_LOAD_FAILED` message on failure
+  - `startWatching()` — `fs.watch` with `persistent: false`, 200 ms debounce to coalesce rapid editor saves
+  - `stopWatching()` — closes watcher and cancels any pending debounce timer
+  - `reload()` — loads candidate KB; if version unchanged → skip; if valid new version → hot-swap; if invalid → keep last good KB and set status to `{ state: 'error' }`
+- `apps/backend/src/app.ts` — `buildApp(kbManager: KbManager)` now takes KbManager as dependency injection
+  - `/health` replaced with `/health/live` (always 200, uptime only) and `/health/ready` (200 ok / 503 degraded with KB detail)
+- `apps/backend/src/server.ts` — structured startup guard with `process.exit(1)`, `startWatching()`, `onClose` hook for teardown
+- `apps/backend/src/handler.ts` — injects KbManager without watching (Lambda is stateless)
+- `apps/backend/tsconfig.app.json` — added `exclude: ["src/**/*.spec.ts"]` to prevent spec files from polluting the production build
+- Test infrastructure added: `jest.config.cts`, `tsconfig.spec.json`, `project.json` test target, `tsconfig.json` spec reference
+- `apps/backend/src/kb-manager.spec.ts` — 8 unit tests covering: initial load, status shape, startup failure, version-change swap, same-version no-op, invalid reload fallback, debounce coalescing, stopWatching timer cancellation
+
+**Files created or modified:**
+- `apps/backend/src/kb-manager.ts` (new)
+- `apps/backend/src/kb-manager.spec.ts` (new)
+- `apps/backend/jest.config.cts` (new)
+- `apps/backend/tsconfig.spec.json` (new)
+- `apps/backend/src/app.ts` (updated)
+- `apps/backend/src/server.ts` (updated)
+- `apps/backend/src/handler.ts` (updated)
+- `apps/backend/tsconfig.app.json` (exclude spec files)
+- `apps/backend/tsconfig.json` (add spec reference)
+- `apps/backend/project.json` (add test target)
+- `AGENT_LOG.md` (this entry)
+
+**Notable fix during implementation:**
+- `tsconfig.app.json` had `include: ["src/**/*.ts"]` with no exclusion — the spec file was being compiled as production code and failing because Jest types weren't available. Fixed by adding `exclude: ["src/**/*.spec.ts"]`.
+
+**Deferred:**
+- Linux inotify atomic-rename edge case: `fs.watch` follows the inode on Linux; if an editor writes via rename, the watcher may stop receiving events. Documented in code comment; fix would be to re-create the watcher on `rename` events or switch to `chokidar`.
+- SOLUTION.md
+- Frontend improvements
+
+---
+
+## [2026-06-28] Typed health response schemas in libs/shared
+
+**User prompts / decisions:**
+- "I would like you to model the responses from the health endpoints as interfaces in the libs shared library instead of returning untyped json"
+- Security correction: "I would like you to not include the path of the KB file in the health response. This is a security concern" — `path` removed from both response schemas
+
+**What was implemented:**
+- New `libs/shared/src/lib/health.schema.ts` with three Zod schemas and inferred TypeScript types:
+  - `HealthLiveResponseSchema` / `HealthLiveResponse` — `{ status: 'alive', uptime }`
+  - `HealthReadyOkResponseSchema` / `HealthReadyOkResponse` — `{ status: 'ready', uptime, kb: { version, loadedAt } }`
+  - `HealthReadyDegradedResponseSchema` / `HealthReadyDegradedResponse` — `{ status: 'degraded', uptime, kb: { lastGoodVersion, lastGoodAt, errorReason } }`
+  - `path` deliberately omitted from all responses to avoid leaking server directory structure
+  - `Date` fields typed as `z.string()` (ISO wire format) and converted via `.toISOString()` in the handler
+- `libs/shared/src/index.ts` updated to export health schemas
+- `apps/backend/src/app.ts` updated: both health routes now declare `schema: { response: { ... } }` using the Zod schemas; handlers typed against inferred types; `path` field removed from returned objects
+
+**Files created or modified:**
+- `libs/shared/src/lib/health.schema.ts` (new)
+- `libs/shared/src/index.ts` (additive export)
+- `apps/backend/src/app.ts` (updated health routes)
+
+**Deferred:**
+- SOLUTION.md
+- Frontend improvements
+- Committing and merging `feature/kb-hot-reload-and-health`
