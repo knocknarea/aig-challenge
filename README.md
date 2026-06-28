@@ -52,11 +52,11 @@ The Lambda image uses the `public.ecr.aws/lambda/nodejs:22` base. Push to ECR an
 
 ### Frontend environment configuration
 
-The frontend calls `/api/policy/quote` (relative path). nginx resolves this at runtime via the `BACKEND_URL` environment variable — no rebuild needed to point at a different backend:
+The frontend calls `/api/policy/quote` (relative path). nginx resolves this at runtime via the `AIG_BACKEND_URL` environment variable — no rebuild needed to point at a different backend:
 
 ```bash
 # Production Fargate example
-docker run -e BACKEND_URL=http://internal-alb.example.com -p 80:80 policy-quote-frontend
+docker run -e AIG_BACKEND_URL=http://internal-alb.example.com -p 80:80 policy-quote-frontend
 ```
 
 ## Running the services
@@ -76,7 +76,7 @@ npm run start:frontend   # Angular on port 4200
 
 ## Knowledge Base
 
-The risk scoring rules live in `risk-kb.json` at the repo root. Adding, removing, or changing a risk factor requires only a KB change — no code changes. Set `KB_PATH` to point to an alternative KB file.
+The risk scoring rules live in `risk-kb.json` at the repo root. Adding, removing, or changing a risk factor requires only a KB change — no code changes. Set `AIG_KB_PATH` to point to an alternative KB file.
 
 ## Project structure
 

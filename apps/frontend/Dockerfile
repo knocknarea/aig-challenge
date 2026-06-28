@@ -25,4 +25,7 @@ RUN chmod +x /docker-entrypoint.sh
 
 EXPOSE 80
 
+# Default matches the docker-compose service name; override with -e AIG_BACKEND_URL=... at runtime
+ENV AIG_BACKEND_URL=http://backend:3000
+
 ENTRYPOINT ["/docker-entrypoint.sh"]

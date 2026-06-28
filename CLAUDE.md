@@ -4,7 +4,9 @@
 
 1. **Never auto-commit.** Always ask the user before creating any git commit, without exception.
 
-2. **Never auto-push.** Always ask before pushing to any remote branch or origin.
+2. **Never commit directly to `main`.** All commits must go to a feature or chore branch. Always verify the current branch with `git branch` before committing. If on `main`, stop and ask the user which branch to use.
+
+3. **Never auto-push.** Always ask before pushing to any remote branch or origin.
 
 3. **Ask before destructive file operations.** Confirm with the user before: deleting any file, running `rm`, `git reset --hard`, `git checkout --`, `git clean`, or overwriting uncommitted changes.
 

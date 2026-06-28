@@ -338,3 +338,91 @@ A running record of work done by Claude in this project. Entries are appended ch
 - Docker build smoke test (requires Docker daemon)
 - SOLUTION.md
 - Merging feature branches to main
+
+---
+
+## [2026-06-28] Chore — SOLUTION.md, CLAUDE.md fix, Docker backend bundling fix
+
+**User prompts / decisions:**
+- "Let's create a chore branch to fix up things and add a SOLUTION.md"
+- "First thing add a check for commits on main to the permission boundary of CLAUDE.md so we can catch this in future"
+- "Go ahead and draft the SOLUTION.md"
+- "There is a problem with docker build of the UI. The files that the Docker needs to copy are excluded by the .dockerignore file" — `apps/frontend` was in .dockerignore (fixed on feature/frontend-deployment branch)
+- "Docker build for backend fails on backend:prune /build/apps/backend/package.json does not exist" — fixed by adding minimal `apps/backend/package.json` (committed to main)
+- "There is a problem with docker compose up --build. The backend fails to run because of Error: Cannot find module 'fastify'"
+
+**Branch:** `chore/solution-and-fixes`
+
+**What was implemented:**
+- `CLAUDE.md` — Permission boundary rule 2 added: never commit directly to `main`; verify branch with `git branch` before any commit
+- `SOLUTION.md` — 300-word summary of architecture, key decisions (Strategy pattern, bidirectional coercion, KB hot-reload, split health endpoints, Docker deployment), and trade-offs
+- `apps/backend/project.json` — production configuration updated: `bundle: true` + `additionalEntryPoints: ["apps/backend/src/handler.ts"]`. With bundling enabled, esbuild can detect which npm packages remain external and `generatePackageJson: true` correctly produces `dist/apps/backend/package.json` with all five runtime deps (`fastify`, `@fastify/cors`, `@fastify/aws-lambda`, `fastify-type-provider-zod`, `zod`). Without bundling, Nx had no reliable way to detect these and the generated package.json was empty.
+- `apps/backend/Dockerfile` — simplified: replaced `nx run backend:prune` with `nx build backend --configuration=production`; `npm ci --ignore-scripts` in `dist/apps/backend/` now installs correctly from the complete generated lockfile; final stages copy only `server.js` + `node_modules` (Fargate) and `handler.js` + `node_modules` (Lambda) — no workspace_modules directory needed since workspace libs are bundled
+
+**Root cause of the Cannot find module 'fastify' error:**
+With `bundle: false`, `generatePackageJson: true` used `apps/backend/package.json` as a template but couldn't auto-detect npm imports, so the generated `dist/apps/backend/package.json` had no dependencies. Switching to `bundle: true` lets esbuild report exactly which packages are external (not inlined), giving Nx the information it needs to generate a complete dependency list.
+
+**Files created or modified:**
+- `CLAUDE.md` (permission boundary rule added)
+- `SOLUTION.md` (new)
+- `apps/backend/project.json` (production config: bundle:true, additionalEntryPoints)
+- `apps/backend/Dockerfile` (simplified build + correct node_modules copy)
+- `AGENT_LOG.md` (this entry)
+
+**Deferred:**
+- Merging all feature branches to main
+
+---
+
+## [2026-06-28] Docker build fixes and env var namespacing (chore/solution-and-fixes)
+
+**Problems encountered and solutions:**
+
+**Problem 1: .dockerignore excluded apps/frontend**
+- Error: `CopyIgnoredFile: Attempting to Copy file "apps/frontend"` during frontend Docker build
+- Cause: `.dockerignore` was written when only the backend Dockerfile existed; `apps/frontend` was blanket-excluded
+- Fix: Removed `apps/frontend` from `.dockerignore` (committed on `feature/frontend-deployment`)
+
+**Problem 2: backend:prune failed — apps/backend/package.json not found**
+- Error: `/build/apps/backend/package.json does not exist` during `nx run backend:prune`
+- Cause: The `@nx/js:prune-lockfile` executor expects a project-level `package.json` in the source directory; the Nx monorepo had none at `apps/backend/`
+- Fix: Created minimal `apps/backend/package.json` with `{name, version, private}` (committed to main)
+
+**Problem 3: Cannot find module 'fastify' at runtime**
+- Error: Backend container exited with `Error: Cannot find module 'fastify'`
+- Cause: With `bundle: false`, `generatePackageJson: true` used `apps/backend/package.json` as a template but could not auto-detect npm package imports, so `dist/apps/backend/package.json` had no dependencies; `npm ci` installed nothing
+- Fix: Added `bundle: true` + `additionalEntryPoints: ["apps/backend/src/handler.ts"]` to the production build config. With bundling, esbuild reports which packages remain external; `generatePackageJson` can then produce a complete `dist/apps/backend/package.json` listing all five runtime deps (`fastify`, `@fastify/cors`, `@fastify/aws-lambda`, `fastify-type-provider-zod`, `zod`). Dockerfile updated: `nx run backend:prune` replaced with `nx build backend --configuration=production`; final stages copy `server.js`/`handler.js` + their `node_modules` only
+
+**Problem 4: risk-kb.json not found in Docker build**
+- Error: `"/build/risk-kb.json": not found` in final stage COPY
+- Cause: `risk-kb.json` was never copied into the builder stage, so `COPY --from=builder /build/risk-kb.json` had nothing to pull
+- Fix: Added `COPY risk-kb.json ./` to the builder stage; set `AIG_KB_PATH` explicitly in both final stages (`/app/risk-kb.json` for Fargate, `/var/task/risk-kb.json` for Lambda)
+
+**Problem 5: nginx proxy_pass empty when AIG_BACKEND_URL not set**
+- Cause: `envsubst` would substitute an empty string if `AIG_BACKEND_URL` was unset, producing invalid nginx config
+- Fix: Added `ENV AIG_BACKEND_URL=http://backend:3000` default to `apps/frontend/Dockerfile`
+
+**User prompts / decisions:**
+- "Can you also fix a sensible default in the docker file of the UI for BACKEND_URL so that it resolves for local build without an environment variable set"
+- "Can you rename any required environment variables so that they are specific to this app, for example instead of BACKEND_URL prepend with AIG"
+- "Log the problems and solutions we have discussed on this branch to the agent log also"
+
+**Env var renames (all app-owned vars now AIG-prefixed):**
+- `PORT` → `AIG_PORT`
+- `HOST` → `AIG_HOST`
+- `KB_PATH` → `AIG_KB_PATH`
+- `BACKEND_URL` → `AIG_BACKEND_URL`
+- `NODE_ENV` — kept (standard Node.js ecosystem convention)
+- `ECS_CONTAINER_METADATA_URI_V4` — kept (AWS-owned)
+
+**Files modified:**
+- `apps/backend/src/server.ts`
+- `apps/backend/src/kb-manager.ts`
+- `apps/backend/Dockerfile`
+- `apps/backend/project.json`
+- `apps/frontend/Dockerfile`
+- `apps/frontend/docker-entrypoint.sh`
+- `apps/frontend/nginx.conf.template`
+- `docker-compose.yml`
+- `README.md`
+- `AGENT_LOG.md` (this entry)

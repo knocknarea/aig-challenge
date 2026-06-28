@@ -2,9 +2,9 @@ import { join } from 'path';
 import { buildApp } from './app';
 import { KbManager } from './kb-manager';
 
-const PORT = Number(process.env['PORT'] ?? 3000);
-const HOST = process.env['HOST'] ?? '0.0.0.0';
-const kbPath = process.env['KB_PATH'] ?? join(process.cwd(), 'risk-kb.json');
+const PORT = Number(process.env['AIG_PORT'] ?? 3000);
+const HOST = process.env['AIG_HOST'] ?? '0.0.0.0';
+const kbPath = process.env['AIG_KB_PATH'] ?? join(process.cwd(), 'risk-kb.json');
 
 let kbManager!: KbManager; // definite assignment — the only other exit path is process.exit(1)
 try {
