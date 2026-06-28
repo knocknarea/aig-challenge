@@ -2,8 +2,20 @@ services:
   backend:
     build:
       context: .
+      dockerfile: apps/backend/Dockerfile
       target: fargate
     ports:
       - "3000:3000"
     environment:
       NODE_ENV: development
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    ports:
+      - "4200:80"
+    environment:
+      BACKEND_URL: http://backend:3000
+    depends_on:
+      - backend
