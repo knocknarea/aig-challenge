@@ -2,7 +2,7 @@
 
 .quote-form-container {
   max-width: 760px;
-  margin: 2rem auto;
+  margin: 0 auto;
   padding: 0 1rem;
 }
 
@@ -56,7 +56,7 @@
     &:focus {
       outline: none;
       border-color: var(--color-primary-light);
-      box-shadow: 0 0 0 3px rgba(42, 95, 158, 0.15);
+      box-shadow: 0 0 0 3px rgba(52, 55, 65, 0.15);
     }
 
     &.invalid {

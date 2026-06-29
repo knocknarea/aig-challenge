@@ -16,6 +16,8 @@ A full-stack Nx monorepo: Angular 21 frontend, Fastify backend, and two shared l
 
 **Docker deployment.** Multi-stage Dockerfiles (one per app, build context at repo root) produce a Fargate image and a Lambda container image for the backend, and an nginx image for the frontend. The Angular app calls `/api/` (relative); nginx proxies this to the backend at runtime via `BACKEND_URL` — no rebuild needed to retarget a different environment.
 
+**AIG UI branding via Claude Code skill.** A project-scoped Claude Code skill (`.claude/skills/aig-ui-branding/`) encodes the AIG corporate style guide — header colour (`#001871`), height, logo placement, content column width, and foreground colours. Invoking the skill retrofits any Angular or React app to the brand spec: the logo is copied to the public assets folder, the app shell gets a full-width branded header and an 80%-wide centred content column, and CSS custom properties are updated globally so all components inherit the new palette without per-component changes. The skill acts as a living style guide: updating it and re-invoking is all that is needed to propagate brand changes across projects.
+
 ## Trade-offs
 
 The KB-as-JSON approach is flexible but puts schema discipline on the operator; malformed KB entries fail at load time (surfaced via `/health/ready`) rather than silently at score time. Hot-reload adds complexity but avoids restart-induced downtime when rules change in production.
@@ -26,4 +28,4 @@ The KB-as-JSON approach is flexible but puts schema discipline on the operator; 
 
 **Postcode validation.** The quote form accepts any string for postcode. This should include a UK postcode format check (regex against the Royal Mail standard) and ideally a lookup against a postcode API to confirm the postcode exists and to derive region-level risk data (flood zone, crime statistics) that could feed additional KB factors.
 
-**AIG style guide UI skill.** A Claude Code skill (`/aig-style`) that reads the AIG brand guidelines and applies them to the Angular frontend: brand colours as CSS custom properties, typography scale, logo placement, form layout conventions, and component spacing. This would give the application a production-grade AIG look without manual design iteration.
+**Extended AIG style guide skill.** The current skill covers top-level layout and colour. With more time it would be extended to cover typography scale, form layout conventions, component spacing, and a dark-mode variant — making it a complete design-system-as-skill that any new AIG project can invoke on day one.
