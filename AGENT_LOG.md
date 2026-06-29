@@ -468,3 +468,32 @@ The additive scoring model means that if a simple factor (`propertyValue > 50000
 - `SOLUTION.md` (deferred items section added)
 
 ---
+
+## [2026-06-29] AIG UI Branding — Frontend Redesign
+
+**User prompts / decisions:**
+- "Let's examine using the aig-ui-branding skill to redesign the frontend app"
+- "Let's cut a branch to do this"
+
+**Branch:** `feature/aig-ui-branding`
+
+**What was implemented:**
+- AIG logo (`aig-logo.svg`) sourced from `.claude/skills/aig-ui-branding/assets/` and placed in `apps/frontend/public/assets/` (Angular serves static files from `public/`, not `src/assets/`)
+- `apps/frontend/src/app/app.html` — replaced bare `<app-quote-form />` with a full branded shell: `<header class="app-header">` (full-width, 10rem, `#343741`, AIG logo aligned to content column) and `<main class="app-content">` wrapping an 80%-wide centred `<div class="app-content__inner">`
+- `apps/frontend/src/app/app.scss` — new shell styles implementing the AIG layout spec
+- `apps/frontend/src/styles/_variables.scss` — updated design tokens: `--color-primary` `#1a3c5e` → `#343741`, `--color-primary-light` `#2a5f9e` → `#4e5260`, `--color-text` `#1a1a2e` → `#343741`, `--color-background` `#f4f6f9` → `#ffffff`
+- `apps/frontend/src/app/quote-form/quote-form.component.scss` — removed `margin: 2rem auto` top margin (shell now provides padding); updated hardcoded focus ring colour to match new primary
+- `apps/frontend/src/index.html` — title updated from `"frontend"` to `"AIG Policy Quote"`
+
+**Verified visually:** Playwright screenshot confirmed `#343741` header, 10rem height, AIG logo loaded (naturalWidth 441), white content area, form centred in 80% column.
+
+**Files created or modified:**
+- `apps/frontend/public/assets/aig-logo.svg` (new)
+- `apps/frontend/src/app/app.html` (updated)
+- `apps/frontend/src/app/app.scss` (updated)
+- `apps/frontend/src/styles/_variables.scss` (updated)
+- `apps/frontend/src/app/quote-form/quote-form.component.scss` (updated)
+- `apps/frontend/src/index.html` (updated)
+- `AGENT_LOG.md` (this entry)
+
+---
