@@ -248,3 +248,44 @@ describe('calculateQuote — compound conditions', () => {
     ).toHaveLength(0);
   });
 });
+
+const DISCOUNT_KB: Kb = {
+  ...TEST_KB,
+  factors: [
+    ...TEST_KB.factors,
+    {
+      id: 'no_claims_discount',
+      description: 'No previous claims — loyalty discount applied',
+      condition: { field: 'previousClaims', operator: 'eq', value: 0 },
+      points: -15,
+    },
+  ],
+};
+
+describe('calculateQuote — no-claims discount', () => {
+  it('applies discount factor when previousClaims is 0', () => {
+    const result = calculateQuote(BASE_REQUEST, DISCOUNT_KB);
+    const discount = result.appliedFactors.find((f) => f.id === 'no_claims_discount');
+    expect(discount).toBeDefined();
+    expect(discount!.points).toBe(-15);
+  });
+
+  it('does not apply discount when previousClaims is 1 or more', () => {
+    const result = calculateQuote({ ...BASE_REQUEST, previousClaims: 1 }, DISCOUNT_KB);
+    expect(result.appliedFactors.find((f) => f.id === 'no_claims_discount')).toBeUndefined();
+  });
+
+  it('floors riskScore at 0 when the discount alone produces a negative total', () => {
+    // BASE_REQUEST has 0 other risk factors + discount (-15) → raw -15, floored to 0
+    const result = calculateQuote(BASE_REQUEST, DISCOUNT_KB);
+    expect(result.riskScore).toBe(0);
+    expect(result.riskBand).toBe('STANDARD');
+  });
+
+  it('floors riskScore at 0 when discount outweighs other risk factors', () => {
+    // Flat (10 pts) + discount (-15 pts) → raw -5, floored to 0
+    const result = calculateQuote({ ...BASE_REQUEST, propertyType: 'Flat' }, DISCOUNT_KB);
+    expect(result.riskScore).toBe(0);
+    expect(result.riskBand).toBe('STANDARD');
+  });
+});
