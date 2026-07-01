@@ -497,3 +497,25 @@ The additive scoring model means that if a simple factor (`propertyValue > 50000
 - `AGENT_LOG.md` (this entry)
 
 ---
+
+## [2026-07-01] No-Claims Discount
+
+**User prompts / decisions:**
+- Add a No-Claims Discount: if a customer has zero previous claims, apply a discount of 15 risk points (subtract 15 from the total risk score, floored at 0). Must be configured entirely in the KB, handle negative-point factors correctly, and appear in appliedFactors.
+- After implementation, also add engine test cases for the discount before confirming.
+
+**What was implemented:**
+- Added `no_claims_discount` factor to `risk-kb.json` (points: -15, condition: previousClaims eq 0). No schema change needed — `points: z.number()` already accepts negatives.
+- Floored riskScore at 0 in `risk-engine.ts` using `Math.max(0, ...)` to prevent a net-negative score from falling through all riskBands and incorrectly resolving to HIGH_RISK.
+- Added `DISCOUNT_KB` fixture and a new `describe` block with 4 test cases to `engine.spec.ts`: discount presence (0 claims), discount absence (1+ claims), floor when discount-only, floor when discount outweighs other factors.
+
+**Files created or modified:**
+- `risk-kb.json` (new factor added)
+- `libs/engine/src/lib/risk-engine.ts` (1-line floor fix)
+- `libs/engine/src/lib/engine.spec.ts` (DISCOUNT_KB fixture + 4 new tests)
+- `AGENT_LOG.md` (this entry)
+
+**Deferred:**
+- None.
+
+---

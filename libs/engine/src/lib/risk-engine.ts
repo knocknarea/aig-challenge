@@ -18,7 +18,7 @@ export function calculateQuote(request: QuoteRequest, kb: Kb): QuoteResponse {
     })
     .filter((f): f is AppliedFactor => f !== null);
 
-  const riskScore = appliedFactors.reduce((acc, f) => acc + f.points, 0);
+  const riskScore = Math.max(0, appliedFactors.reduce((acc, f) => acc + f.points, 0));
 
   const { riskBand, riskMultiplier } = resolveRiskBand(riskScore, kb);
 

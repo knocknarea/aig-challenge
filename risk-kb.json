@@ -29,6 +29,12 @@
       "perOccurrence": true
     },
     {
+      "id": "no_claims_discount",
+      "description": "No previous claims — loyalty discount applied",
+      "condition": { "field": "previousClaims", "operator": "eq", "value": 0 },
+      "points": -15
+    },
+    {
       "id": "property_type_flat",
       "description": "Flat — higher shared structural risk",
       "condition": { "field": "propertyType", "operator": "eq", "value": "Flat" },
